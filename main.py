@@ -1,48 +1,17 @@
 import numpy as np
 import pandas as pd
 
-traitsQuestions = 35
-n = 100
-traits_data = pd.DataFrame(np.random.randint(4, size=(n, traitsQuestions)) + 1)
-traits_importance_data = pd.DataFrame(np.random.randint(4, size=(n, traitsQuestions)) + 1)
-
-difference_keys = [10, 5, 2.5, 1]
-importance_keys = [0.5, 1, 1.5, 2]
-
-def get_score(p1, p2):
-  differences = abs(traits_data.iloc[p1] - traits_data.iloc[p2])
-  differences = [difference_keys[i] for i in differences]
-  importance = [importance_keys[i-1] for i in traits_importance_data.iloc[p1]]
-  return sum([a*b for a, b in zip(differences, importance)])
-
-def get_average_score(p1, p2):
-  differences = abs(traits_data.iloc[p1] - traits_data.iloc[p2])
-  differences = [difference_keys[i] for i in differences]
-  importance_p1 = [importance_keys[i-1] for i in traits_importance_data.iloc[p1]]
-  importance_p2 = [importance_keys[i-1] for i in traits_importance_data.iloc[p2]]
-  p1_to_p2_score = sum([a*b for a, b in zip(differences, importance_p1)])
-  p2_to_p1_score = sum([a*b for a, b in zip(differences, importance_p2)])
-  return (p1_to_p2_score + p2_to_p1_score) / 2
-
-def get_matches(p1, exclude=[-1]):
-  p1_scores = {}
-  for i in range(n):
-    if i == p1 or i in exclude: continue
-    p1_scores[i] = get_score(p1, i)
-  return sorted(p1_scores, key=p1_scores.get, reverse=True)
-
-final_matches = []
-taken = set()
+from score import *
 
 counter = 0
-while (len(taken) != n):
+while (len(taken) < n-1):
   counter += 1
 
   all_matches = dict()
   for i in range(n):
     if not i in taken:
       all_matches[i] = get_matches(i, taken)
-
+      
   # Gets where user placed in their matches' lists
   all_matches_places = dict()
   for i in range(n):
@@ -66,5 +35,29 @@ while (len(taken) != n):
   print(f'Went to place: {place}')
   print()
 
+mycursor = mydb.cursor()
+
+mycursor.execute('truncate table friendMatches')
+
 for match in final_matches:
-  print(match, get_average_score(match[0], match[1]))
+  print(backgroundInfo['first_name'][match[0]], backgroundInfo['last_name'][match[0]], '+', backgroundInfo['first_name'][match[1]], backgroundInfo['last_name'][match[1]], get_score(match[0], match[1]), get_score(match[1], match[0]))
+
+  mycursor.execute(f"INSERT INTO friendMatches (uuid_person1, uuid_person2) VALUES ('{backgroundInfo['uuid'][match[0]]}', '{backgroundInfo['uuid'][match[1]]}')")
+
+# with pd.option_context('display.max_rows', None, 'display.max_columns', None): 
+#   m1 = final_matches[0][0]
+#   m2 = final_matches[0][1]
+#   differences = abs(questions.iloc[m1] - questions.iloc[m2])
+#   print(differences)
+
+#   print(interestQuestions.iloc[m1] == interestQuestions.iloc[m2])
+
+# friendMatches = pd.read_sql('SELECT * FROM friendMatches', con=mydb)
+# with pd.option_context('display.max_rows', None, 'display.max_columns', None): 
+#   print(friendMatches)
+
+# for i in range(n):
+#   for j in range(n):
+#     print(f"{backgroundInfo['first_name'][i]} {backgroundInfo['first_name'][j]}, {get_score(i, j)}")
+
+mydb.close()
